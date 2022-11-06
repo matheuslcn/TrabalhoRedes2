@@ -25,4 +25,5 @@ if __name__ == '__main__':
     while True:
         data = server.receive()
         print(data)
+        server.send(data)
         
