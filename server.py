@@ -13,22 +13,22 @@ class Server:
         self.sock.listen()
         while True:
             print("Esperando conexao...")
-            conn, ip = self.sock.accept()
-            print('GOT CONNECTION FROM:', ip)
-            thread = threading.Thread(target=self.threaded_client, args=(conn,))
+            conn, (ip, port) = self.sock.accept()
+            print('GOT CONNECTION FROM:', (ip, port))
+            thread = threading.Thread(target=self.threaded_client, args=(conn, ip))
             thread.start()
 
-    def threaded_client(self, conn):
-        self.add_user(conn)
+    def threaded_client(self, conn, ip):
+        self.add_user(conn, ip)
 
-    def add_user(self, conn):
+    def add_user(self, conn, ip):
         conn.send('Digite seu nome de usuario: '.encode())
         username = conn.recv(1024).decode()
         while username in self.users_list:
             conn.send('Nome de usuario ja existente, digite outro: '.encode())
             username = conn.recv(1024).decode()
         port = self.get_port(conn)
-        self.users_list[username] = (conn.getpeername()[0], port)
+        self.users_list[username] = (ip, port)
 
         print(self.users_list)
     
@@ -44,5 +44,4 @@ class Server:
 if __name__ == '__main__':
     server = Server('localhost', 5000)
     server.create_connection()
-    server.close()
         
