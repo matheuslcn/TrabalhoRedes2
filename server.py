@@ -20,6 +20,17 @@ class Server:
 
     def threaded_client(self, conn, ip):
         self.add_user(conn, ip)
+        while True:
+            try:
+                msg = conn.recv(1024).decode()
+                if msg == 'sair':
+                    conn.close()
+                print(msg)
+                conn.send('Mensagem recebida'.encode())
+            except:
+                self.remove_user(ip)
+                break
+        print('Conexao encerrada')
 
     def add_user(self, conn, ip):
         conn.send('Digite seu nome de usuario: '.encode())
@@ -31,6 +42,13 @@ class Server:
         self.users_list[username] = (ip, port)
 
         print(self.users_list)
+    
+    def remove_user(self, ip):
+        for username in self.users_list:
+            if self.users_list[username][0] == ip:
+                del self.users_list[username]
+                break
+                
     
     def get_port (self, conn):
         conn.send('Digite a porta que deseja usar: '.encode())
