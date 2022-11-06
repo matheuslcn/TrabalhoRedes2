@@ -27,8 +27,16 @@ class Server:
         while username in self.users_list:
             conn.send('Nome de usuario ja existente, digite outro: '.encode())
             username = conn.recv(1024).decode()
-        self.users_list[username] = conn
+        port = self.get_port(conn)
+        self.users_list[username] = (conn.getpeername()[0], port)
+
         print(self.users_list)
+    
+    def get_port (self, conn):
+        conn.send('Digite a porta que deseja usar: '.encode())
+        port = conn.recv(1024).decode()
+        return port
+        
     
     def close(self):
         self.sock.close()
