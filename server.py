@@ -7,6 +7,7 @@ class Server:
         self.port = port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.bind((self.host, self.port))
+        self.users_list = {}
 
     def create_connection(self):
         self.sock.listen()
@@ -18,17 +19,22 @@ class Server:
             thread.start()
 
     def threaded_client(self, conn):
-        pass
+        self.add_user(conn)
 
-
+    def add_user(self, conn):
+        conn.send('Digite seu nome de usuario: '.encode())
+        username = conn.recv(1024).decode()
+        while username in self.users_list:
+            conn.send('Nome de usuario ja existente, digite outro: '.encode())
+            username = conn.recv(1024).decode()
+        self.users_list[username] = conn
+        print(self.users_list)
+    
     def close(self):
-        self.conn.close()
         self.sock.close()
 
 if __name__ == '__main__':
-    server = Server('localhost', 1234)
-    while True:
-        data = server.receive()
-        print(data)
-        server.send(data)
+    server = Server('localhost', 5000)
+    server.create_connection()
+    server.close()
         
