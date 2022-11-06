@@ -1,4 +1,5 @@
 import socket
+import threading
 
 class Server:
     def __init__(self, host, port):
@@ -6,15 +7,19 @@ class Server:
         self.port = port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.bind((self.host, self.port))
-        self.sock.listen(1)
-        self.conn, self.addr = self.sock.accept()
 
-    def send(self, data):
-        self.conn.send(data.encode())
+    def create_connection(self):
+        self.sock.listen()
+        while True:
+            print("Esperando conexao...")
+            conn, ip = self.sock.accept()
+            print('GOT CONNECTION FROM:', ip)
+            thread = threading.Thread(target=self.threaded_client, args=(conn,))
+            thread.start()
 
-    def receive(self):
-        data = self.conn.recv(1024).decode()
-        return data
+    def threaded_client(self, conn):
+        pass
+
 
     def close(self):
         self.conn.close()
