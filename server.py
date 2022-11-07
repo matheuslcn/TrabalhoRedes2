@@ -31,6 +31,7 @@ class Server:
                 self.remove_user(ip)
                 break
         print('Conexao encerrada')
+        print(self.users_list)
 
     def add_user(self, conn, ip):
         conn.send('Digite seu nome de usuario: '.encode())
