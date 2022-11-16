@@ -22,34 +22,52 @@ class Client:
         return self.sock.recv(1024).decode()
 
     def close(self):
-        self.sock.close()
+        self.tcp_sock.close()
+        self.udp_listen_port.close()
+        self.udp_speak_port.close()
+        
 
     def call(self):
-        thread_listen = threading.Thread(target=self.listen_call)
+        thread_listen = threading.Thread(target=self.listen)
         thread_listen.start()
-        thread_listen = threading.Thread(target=self.speak_call)
-        thread_listen.start()
-
+        thread_speak = threading.Thread(target=self.speak)
+        thread_speak.start()
         
-    def listen_call(self):
+    def listen(self):
         while True:
             msg = self.udp_listen_sock.recv(1024).decode()
             print(msg)
     
-    def speak_call(self):
+    def speak(self):
         while True:
             msg = input()
             self.udp_speak_sock.send(msg.encode())
+
+    def start(self):
+        self.send(f'login')
+        username = input("Digite seu nome de usuario: ")
+        self.send(username)
+        self.send(f'port {self.udp_listen_port}')
+        
 
 
 
 if __name__ == '__main__':
     client = Client('localhost', 5000)
+    client.start()
     while True:
-        msg = client.receive()
-        print(msg)
-        msg = input()
-        client.send(msg)
+        print("1 - Fazer chamada")
+        print("2 - Sair")
+        option = input()
+        if option == '1':
+            client.call()
+        elif option == '2':
+            client.close()
+            break
+        else:
+            print("Opcao invalida")
+
+            
 
     
         
