@@ -62,10 +62,6 @@ class Client:
     def start(self):
         username = input("Digite seu nome de usuario: ")
         self.send_to_server(f'login {username} {self.udp_listen_port}')
-        thread_listen = threading.Thread(target=self.listen)
-        thread_listen.start()
-        thread_speak = threading.Thread(target=self.speak)
-        thread_speak.start()
         
 
 
