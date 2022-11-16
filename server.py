@@ -29,10 +29,10 @@ class Server:
         print(self.users_list)
 
     def add_user(self, conn, ip):
-        conn.send('Digite seu nome de usuario: '.encode())
-        username = conn.recv(1024).decode()
-        while username in self.users_list:
-            conn.send('Nome de usuario ja existente, digite outro: '.encode())
+        msg = conn.recv(1024).decode()
+        msg_list = msg.split()
+        while msg_list[0] in self.users_list:
+            conn.send('EXISTING_USER'.encode())
             username = conn.recv(1024).decode()
         port = self.get_port(conn)
         self.users_list[username] = (ip, port)
@@ -45,12 +45,7 @@ class Server:
                 del self.users_list[username]
                 break
                 
-    
-    def get_port (self, conn):
-        conn.send('Digite a porta que deseja usar: '.encode())
-        port = conn.recv(1024).decode()
-        return port
-        
+      
     def receive_message(self, conn):
         msg = conn.recv(1024).decode()
         msg_list = msg.split()

@@ -2,8 +2,8 @@ import socket
 import threading
 
 class Client:
-    def __init__(self, username, host, tcp_port, udp_listen, udp_speak):
-        self.username = username
+    def __init__(self, host, tcp_port, udp_listen, udp_speak):
+        self.username = ''
         self.host = host
         self.tcp_port = tcp_port
         self.tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -37,6 +37,10 @@ class Client:
             elif msg_list[0] == 'AVAILABLE':
                 print("Usuario disponivel")
                 self.start_call(msg_list[1], msg_list[2])
+            elif msg_list[0] == 'EXISTING_USER':
+                print("Usuario ja existe")
+                self.change_username()
+                self.send_to_server(f'LOGIN {self.username} {self.udp_listen_port}')
 
             
         
@@ -69,16 +73,19 @@ class Client:
             self.udp_speak_sock.sendto(msg.encode(), (ip, port))
 
     def start(self):
+        self.change_username()
         self.send_to_server(f'LOGIN {self.username} {self.udp_listen_port}')
         thread_receive_message = threading.Thread(target=self.receive_from_server)
         thread_receive_message.start()
+    
+    def change_username(self):
+        self.username = input("Digite seu nome de usuario: ")
 
 
 if __name__ == '__main__':
     udp_listen = int(input("Digite a porta UDP para receber mensagens: "))
     udp_speak = int(input("Digite a porta UDP para enviar mensagens: "))
-    username = input("Digite seu nome de usuario: ")
-    client = Client('localhost', username, 5000, udp_listen, udp_speak)
+    client = Client('localhost', 5000, udp_listen, udp_speak)
     client.start()
     while True:
         print("1 - Fazer chamada")
