@@ -36,6 +36,7 @@ class Client:
                 self.send_to_server(response)
             elif msg_list[0] == 'OCCUPIED':
                 print("Usuario ocupado")
+                self.in_call = False
             elif msg_list[0] == 'AVAILABLE':
                 print("Usuario disponivel")
                 self.start_call(msg_list[1], msg_list[2])
@@ -63,10 +64,11 @@ class Client:
 
     def start_call(self, ip, port):
         self.in_call = True
+        thread_speak = threading.Thread(target=self.speak, args=(ip, port))
+        thread_speak.start()  
         thread_listen = threading.Thread(target=self.listen)
         thread_listen.start()
-        thread_speak = threading.Thread(target=self.speak, args=(ip, port))
-        thread_speak.start()       
+     
         
     def listen(self):
         while True:
@@ -92,16 +94,19 @@ if __name__ == '__main__':
     udp_speak = int(input("Digite a porta UDP para enviar mensagens: "))
     client = Client('localhost', 5000, udp_listen, udp_speak)
     client.start()
-    
+
     while not client.is_logged:
         pass
 
-    while True:
+    while not client.in_call:
         print("1 - Fazer chamada")
         print("2 - Sair")
         option = input()
         if option == '1':
+            client.in_call = True
             client.call()
+            while client.in_call:
+                pass
         elif option == '2':
             client.send_to_server('LOGOUT')
             client.close()

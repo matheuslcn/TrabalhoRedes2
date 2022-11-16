@@ -29,17 +29,17 @@ class Server:
         print(self.users_list)
 
     def add_user(self, conn, username, port):
-        while username in self.users_list:
+        if username in self.users_list:
             conn.send('EXISTING_USER'.encode())
-            username = conn.recv(1024).decode()
+            return
         self.users_list[username] = (conn, port)
         self.send_message(conn, 'SUCCESSFUL_LOGIN')
-        print(self.users_list)
-    
+        print(self.users_list)    
 
     def remove_user(self, ip):
         for username in self.users_list:
-            if self.users_list[username][0] == ip:
+            user_ip = self.users_list[username][0].getpeername()[0]
+            if user_ip == ip:
                 del self.users_list[username]
                 break
                 
@@ -55,7 +55,10 @@ class Server:
         elif msg_list[0] == 'LOGIN':
             self.add_user(conn, msg_list[1], msg_list[2])
         elif msg_list[0] == 'CALL':
-            self.send_message(self.users_list[msg_list[1]][0], msg)
+            ip = self.users_list[msg_list[1]][0].getpeername()[0]
+            port = self.users_list[msg_list[1]][1]
+            c = self.users_list[msg_list[1]][0]
+            self.send_message(c, f"{msg} {ip} {port}")
         elif msg_list == 'OCCUPIED' or msg_list == 'AVAILABLE':
             self.send_message(conn, msg)
         
