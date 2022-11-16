@@ -47,6 +47,12 @@ class Client:
             elif msg_list[0] == 'SUCCESSFUL_LOGIN':
                 print("Usuario criado")
                 self.is_logged = True
+            elif msg_list[0] == 'INVALID_COMMAND':
+                print("Comando invalido")
+            elif msg_list[0] == 'USER_NOT_FOUND':
+                print("Usuario nao encontrado")
+                
+            
             
 
             

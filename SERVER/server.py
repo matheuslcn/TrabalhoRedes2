@@ -50,18 +50,37 @@ class Server:
         msg = conn.recv(1024).decode()
         print(msg)
         msg_list = msg.split()
-        if msg_list[0] == 'LOGOUT':
-            conn.close()
-        elif msg_list[0] == 'LOGIN':
-            self.add_user(conn, msg_list[1], msg_list[2])
-        elif msg_list[0] == 'CALL':
-            ip = self.users_list[msg_list[1]][0].getpeername()[0]
-            port = self.users_list[msg_list[1]][1]
-            c = self.users_list[msg_list[1]][0]
-            self.send_message(c, f"{msg} {ip} {port}")
-        elif msg_list == 'OCCUPIED' or msg_list == 'AVAILABLE':
-            self.send_message(conn, msg)
-        
+        commands = {
+            'LOGIN': self.add_user,
+            'CALL': self.call,
+            'LOGOUT': self.logout,
+            'OCCUPIED': self.occupied,
+            'AVAILABLE': self.available
+        }
+        commands.get(msg_list[0], self.message_error)(conn, msg_list)
+
+    def call(self, conn, msg_list):
+        username = msg_list[1]
+        if username in self.users_list:
+            user_conn = self.users_list[username][0]
+            user_port = self.users_list[username][1]
+            user_ip = user_conn.getpeername()[0]
+            self.send_message(user_conn, f'CALL {user_ip} {user_port}')
+        else:
+            self.send_message(conn, 'USER_NOT_FOUND')
+
+    def logout(self, conn, _):
+        ip = conn.getpeername()[0]
+        self.remove_user(ip)
+
+    def occupied(self, conn, _):
+        self.send_message(conn, 'OCCUPIED')
+
+    def available(self, conn, _):
+        self.send_message(conn, 'AVAILABLE')
+
+    def message_error(self, conn, _):
+        self.send_message(conn, 'INVALID_COMMAND')
 
     def close(self):
         self.sock.close()
