@@ -19,14 +19,9 @@ class Server:
             thread.start()
 
     def threaded_client(self, conn, ip):
-        self.add_user(conn, ip)
         while True:
             try:
-                msg = conn.recv(1024).decode()
-                if msg == 'sair':
-                    conn.close()
-                print(msg)
-                conn.send('Mensagem recebida'.encode())
+                self.receive_message(conn)
             except:
                 self.remove_user(ip)
                 break
@@ -56,7 +51,17 @@ class Server:
         port = conn.recv(1024).decode()
         return port
         
-    
+    def receive_message(self, conn):
+        msg = conn.recv(1024).decode()
+        msg_list = msg.split()
+        if msg_list[0] == 'LOGOUT':
+            conn.close()
+        elif msg_list[0] == 'LOGIN':
+            self.add_user(conn, msg_list[1], msg_list[2])
+
+        print(msg)
+        conn.send('Mensagem recebida'.encode())
+
     def close(self):
         self.sock.close()
 
