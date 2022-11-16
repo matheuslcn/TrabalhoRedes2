@@ -3,7 +3,7 @@ import threading
 
 class Client:
     def __init__(self, host, tcp_port, udp_listen, udp_speak):
-        self.username = ''
+        self.username = self.change_username()
         self.host = host
         self.tcp_port = tcp_port
         self.tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -15,6 +15,7 @@ class Client:
         self.udp_speak_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.udp_speak_sock.connect((self.host, self.tcp_port))
         self.in_call = False
+        self.is_logged = False
 
 
     def send_to_server(self, msg):
@@ -23,6 +24,7 @@ class Client:
     def receive_from_server(self):
         while True:
             msg = self.tcp_sock.recv(1024).decode()
+            print(msg)
             msg_list = msg.split()
             response = ''
             if msg_list[0] == 'CALL':
@@ -39,8 +41,12 @@ class Client:
                 self.start_call(msg_list[1], msg_list[2])
             elif msg_list[0] == 'EXISTING_USER':
                 print("Usuario ja existe")
-                self.change_username()
+                self.username = self.change_username()
                 self.send_to_server(f'LOGIN {self.username} {self.udp_listen_port}')
+            elif msg_list[0] == 'SUCCESSFUL_LOGIN':
+                print("Usuario criado")
+                self.is_logged = True
+            
 
             
         
@@ -73,20 +79,23 @@ class Client:
             self.udp_speak_sock.sendto(msg.encode(), (ip, port))
 
     def start(self):
-        self.change_username()
         self.send_to_server(f'LOGIN {self.username} {self.udp_listen_port}')
         thread_receive_message = threading.Thread(target=self.receive_from_server)
         thread_receive_message.start()
     
     def change_username(self):
-        self.username = input("Digite seu nome de usuario: ")
-
+        username = input("Digite seu nome de usuario: ")
+        return username
 
 if __name__ == '__main__':
     udp_listen = int(input("Digite a porta UDP para receber mensagens: "))
     udp_speak = int(input("Digite a porta UDP para enviar mensagens: "))
     client = Client('localhost', 5000, udp_listen, udp_speak)
     client.start()
+    
+    while not client.is_logged:
+        pass
+
     while True:
         print("1 - Fazer chamada")
         print("2 - Sair")

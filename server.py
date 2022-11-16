@@ -28,34 +28,37 @@ class Server:
         print('Conexao encerrada')
         print(self.users_list)
 
-    def add_user(self, conn, ip):
-        msg = conn.recv(1024).decode()
-        msg_list = msg.split()
-        while msg_list[0] in self.users_list:
+    def add_user(self, conn, username, port):
+        while username in self.users_list:
             conn.send('EXISTING_USER'.encode())
             username = conn.recv(1024).decode()
-        port = self.get_port(conn)
-        self.users_list[username] = (ip, port)
-
+        self.users_list[username] = (conn, port)
+        self.send_message(conn, 'SUCCESSFUL_LOGIN')
         print(self.users_list)
     
+
     def remove_user(self, ip):
         for username in self.users_list:
             if self.users_list[username][0] == ip:
                 del self.users_list[username]
                 break
                 
-      
+    def send_message(self, conn, msg):
+        conn.send(msg.encode())
+
     def receive_message(self, conn):
         msg = conn.recv(1024).decode()
+        print(msg)
         msg_list = msg.split()
         if msg_list[0] == 'LOGOUT':
             conn.close()
         elif msg_list[0] == 'LOGIN':
             self.add_user(conn, msg_list[1], msg_list[2])
-
-        print(msg)
-        conn.send('Mensagem recebida'.encode())
+        elif msg_list[0] == 'CALL':
+            self.send_message(self.users_list[msg_list[1]][0], msg)
+        elif msg_list == 'OCCUPIED' or msg_list == 'AVAILABLE':
+            self.send_message(conn, msg)
+        
 
     def close(self):
         self.sock.close()
