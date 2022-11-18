@@ -16,13 +16,15 @@ class Server:
             conn, (ip, port) = self.sock.accept()
             print('GOT CONNECTION FROM:', (ip, port))
             self.receive_message(conn)
-            username = self.get_username(conn)
+            ip = conn.getpeername()[0]
+            username = self.get_username(ip)
             thread = threading.Thread(target=self.threaded_client, args=(conn, username))
             thread.start()
 
-    def get_username(self, conn):
+    def get_username(self, ip):
         for username in self.users_list:
-            if self.users_list[username][0] == conn:
+            print(username)
+            if self.users_list[username][0] == ip:
                 return username
         return None
 
