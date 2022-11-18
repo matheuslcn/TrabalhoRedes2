@@ -1,90 +1,98 @@
 import socket
 import threading
+from callServer import *
 
 class Client:
-    def __init__(self, host, tcp_port, udp_listen, udp_speak):
+    def __init__(self, host, tcp_port, udp_listen_port, udp_speak_port):
         self.username = self.change_username()
         self.host = host
+
         self.tcp_port = tcp_port
         self.tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.tcp_sock.connect((self.host, self.tcp_port))
-        self.udp_listen_port = udp_listen
-        self.udp_listen_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.udp_listen_sock.bind((self.host, self.udp_listen_port))
-        self.udp_speak_port = udp_speak
-        self.udp_speak_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.udp_speak_sock.connect((self.host, self.tcp_port))
-        self.in_call = False
+
+        self.udp_call_port = udp_speak_port
+        self.udp_call_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.udp_call_sock.bind((self.host, self.udp_call_port))
+
+        self.call_server = CallServer(self.host, udp_listen_port, self.udp_call_port)
+        threaded_server = threading.Thread(target=self.call_server.start)
+        threaded_server.start()
+
         self.is_logged = False
 
+    def change_username(self):
+        username = input("Digite seu nome de usuario: ")
+        return username
 
-    def send_to_server(self, msg):
+    def start(self):
+        self.tcp_send(f'login {self.username} {self.call_server.port}')
+        thread_receive_message = threading.Thread(target=self.tcp_receive)
+        thread_receive_message.start()
+
+    def tcp_send(self, msg):
         self.tcp_sock.send(msg.encode())
         
-    def receive_from_server(self):
+    def tcp_receive(self):
         while True:
             msg = self.tcp_sock.recv(1024).decode()
             print(msg)
             msg_list = msg.split()
-            response = ''
-            """
-            # para refatoracao
+            
             commands = {
-                'SUCCESSFUL_LOGIN': self.login,
-                'USER_ALREADY_EXISTS': self.user_already_exists,
-                'CALL': self.call,
-                'LOGOUT': self.logout,
-                'OCCUPIED': self.occupied,
-                'AVAILABLE': self.available,
-                'USER_NOT_FOUND': self.user_not_found,
+                'resposta_login': self.login,
+                'resposta_consulta': self.invite,
+                'resposta_convite': self.call,
+
             }
-            """
+            commands[msg_list[0]](msg_list)
+                        
+    def login(self, msg_list):
+        action = msg_list[1]
+        if action == 'usuario_logado_com_sucesso':
+            self.is_logged = True
+            print("Usuario logado")
+        elif action == 'usuario_existente':
+            print("Usuario ja existe")
+            self.username = self.change_username()
+            self.tcp_send(f'login {self.username} {self.udp_listen_port}')
 
-
-            if msg_list[0] == 'CALL':
-                if self.in_call:
-                    response = 'OCCUPIED'
-                else:
-                    response = 'AVAILABLE'
-                    self.start_call(msg_list[1], msg_list[2])
-                self.send_to_server(response)
-            elif msg_list[0] == 'OCCUPIED':
-                print("Usuario ocupado")
-                self.in_call = False
-            elif msg_list[0] == 'AVAILABLE':
-                print("Usuario disponivel")
-                self.start_call(msg_list[1], msg_list[2])
-            elif msg_list[0] == 'USER_ALREADY_EXISTS':
-                print("Usuario ja existe")
-                self.username = self.change_username()
-                self.send_to_server(f'LOGIN {self.username} {self.udp_listen_port}')
-            elif msg_list[0] == 'SUCCESSFUL_LOGIN':
-                print("Usuario criado")
-                self.is_logged = True
-            elif msg_list[0] == 'INVALID_COMMAND':
-                print("Comando invalido")
-            elif msg_list[0] == 'USER_NOT_FOUND':
-                print("Usuario nao encontrado")
-                
-            
-            
-
-            
-        
+    def get_user_information(self):
+        username = input("Digite o nome do usuario que deseja chamar: ")
+        self.tcp_send(f"consulta {username}")        
 
     def close(self):
+        self.tcp_send('logout')
         self.tcp_sock.close()
-        self.udp_listen_port.close()
-        self.udp_speak_port.close()
+        self.call_server.close()
+        self.udp_call_sock.close()
         self.is_logged = False
         
+    def invite(self, msg_list):
+        action = msg_list[1]
+        if action == 'usuario_ineexistente':
+            print("Usuario nao encontrado")
+        else:
+            username = msg_list[2]
+            ip = msg_list[3]
+            port = msg_list[4]
+            self.udp_send(f"convite {self.username} {self.host} {self.udp_call_port}", ip, port)
+            print(f"Convite enviado para {username}")
+            
 
-    def call(self):
-        username = input("Digite o nome do usuario que deseja chamar: ")
-        self.send_to_server(f"CALL {username}")
+    def call(self, msg_list):
+        action = msg_list[1]
+        if action == "ocupado":
+            print("Usuario ocupado")
+            self.call_server.in_call = False
+        elif action == "disponivel":
+            ip = msg_list[2]
+            port = msg_list[3]
+            self.start_call(ip, port)
+
 
     def start_call(self, ip, port):
-        self.in_call = True
+        self.call_server.in_call = True
         thread_speak = threading.Thread(target=self.speak, args=(ip, port))
         thread_speak.start()  
         thread_listen = threading.Thread(target=self.listen)
@@ -93,29 +101,25 @@ class Client:
         
     def listen(self):
         while True:
-            msg = self.udp_listen_sock.recv(1024).decode()
+            msg = self.udp_call_sock.recv(1024).decode()
             print(msg)
     
     def speak(self, ip, port):
         while True:
             msg = input()
-            self.udp_speak_sock.sendto(msg.encode(), (ip, port))
-
-    def start(self):
-        self.send_to_server(f'LOGIN {self.username} {self.udp_listen_port}')
-        thread_receive_message = threading.Thread(target=self.receive_from_server)
-        thread_receive_message.start()
+            self.udp_send(msg, ip, port)
     
-    def change_username(self):
-        username = input("Digite seu nome de usuario: ")
-        return username
+    def udp_send(self, msg, ip, port):
+        self.udp_call_sock.sendto(msg.encode(), (ip, port))
+
 
     def menu(self):
         print("1 - Chamar usuario")
         print("2 - Sair")
         option = int(input("Digite a opcao desejada: "))
         if option == 1:
-            self.call()
+            self.call_server.in_call = True
+            self.get_user_information()
         elif option == 2:
             self.close()
         else:
@@ -131,7 +135,7 @@ if __name__ == '__main__':
         pass
 
     while client.is_logged:
-        while client.in_call:
+        while client.call_server.in_call:
             pass
         thread_menu = threading.Thread(target=client.menu)
         thread_menu.start()
