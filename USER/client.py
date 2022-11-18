@@ -55,7 +55,7 @@ class Client:
         elif action == 'usuario_existente':
             print("Usuario ja existe")
             self.username = self.change_username()
-            self.tcp_send(f'login {self.username} {self.udp_listen_port}')
+            self.tcp_send(f'login {self.username} {self.call_server.port}')
 
     def get_user_information(self):
         username = input("Digite o nome do usuario que deseja chamar: ")
@@ -69,35 +69,14 @@ class Client:
         self.is_logged = False
         
     def invite(self, msg_list):
-        action = msg_list[1]
-        if action == 'usuario_ineexistente':
+        username = msg_list[1]
+        if username == 'usuario_inexistente':
             print("Usuario nao encontrado")
         else:
-            username = msg_list[2]
-            ip = msg_list[3]
-            port = msg_list[4]
-            self.udp_send(f"convite {self.username} {self.host} {self.udp_call_port}", ip, port)
-            print(f"Convite enviado para {username}")
-            
-
-    def call(self, msg_list):
-        action = msg_list[1]
-        if action == "ocupado":
-            print("Usuario ocupado")
-            self.call_server.in_call = False
-        elif action == "disponivel":
             ip = msg_list[2]
-            port = msg_list[3]
-            self.start_call(ip, port)
-
-
-    def start_call(self, ip, port):
-        self.call_server.in_call = True
-        thread_speak = threading.Thread(target=self.speak, args=(ip, port))
-        thread_speak.start()  
-        thread_listen = threading.Thread(target=self.listen)
-        thread_listen.start()
-     
+            port = int(msg_list[3])
+            self.udp_send(f"convite {self.username} {self.host} {self.udp_call_port}", ip, port)
+            print(f"Convite enviado para {username}")     
         
     def listen(self):
         while True:
@@ -112,18 +91,73 @@ class Client:
     def udp_send(self, msg, ip, port):
         self.udp_call_sock.sendto(msg.encode(), (ip, port))
 
+    def receive_udp(self):
+        msg, (ip_call_server, port_call_server) = self.udp_call_sock.recvfrom(1024)
+        print(msg)
+        msg_list = msg.decode().split()
+        commands = {
+            'convite': self.receive_invite,
+            'resposta_convite': self.call,
 
+        }
+        commands[msg_list[0]](msg_list, (ip_call_server, port_call_server))
+
+    def receive_invite(self, msg_list, ip_port):
+        ip_call_server, port_call_server = ip_port
+        username = msg_list[1]
+        ip = msg_list[2]
+        port = int(msg_list[3])
+
+        print(f"Voce recebeu um convite de {username}")
+        option = int(input("1 - Aceitar\n2 - Recusar\n"))
+        while option != 1 and option != 2:
+            print("Opcao invalida")
+            option = int(input("1 - Aceitar\n2 - Recusar\n"))
+
+        ans = ''
+        if option == 1:
+            ans = "disponivel"
+            self.start_call(ip, port)
+        elif option == 2:
+            ans = "recusou"
+        self.udp_send(f"resposta_convite {ans} {ip} {port}", ip_call_server, port_call_server)
+
+
+
+    def call(self, msg_list, _):
+        status = msg_list[1]
+        if status == "ocupado" or status == "recusou":
+            print(f"Usuario {status}")
+            self.call_server.in_call = False
+        elif status == "disponivel":
+            ip = msg_list[2]
+            port = int(msg_list[3])
+            self.start_call(ip, port)
+
+
+    def start_call(self, ip, port):
+        thread_speak = threading.Thread(target=self.speak, args=(ip, port))
+        thread_speak.start()  
+        thread_listen = threading.Thread(target=self.listen)
+        thread_listen.start()
+        
     def menu(self):
         print("1 - Chamar usuario")
         print("2 - Sair")
-        option = int(input("Digite a opcao desejada: "))
-        if option == 1:
-            self.call_server.in_call = True
-            self.get_user_information()
-        elif option == 2:
-            self.close()
-        else:
-            print("Opcao invalida")
+        print("Digite a opcao desejada: ")
+        timeout = 0.1
+        while not self.call_server.in_call:
+            t = threading.Timer(timeout, print, [''])
+            t.start()
+            option = int(input(''))
+            if option == 1:
+                self.call_server.in_call = True
+                self.get_user_information()
+            elif option == 2:
+                self.close()
+            else:
+                print("Opcao invalida")
+            t.cancel()
 
 if __name__ == '__main__':
     udp_listen = int(input("Digite a porta UDP para receber mensagens: "))
@@ -137,9 +171,19 @@ if __name__ == '__main__':
     while client.is_logged:
         while client.call_server.in_call:
             pass
-        thread_menu = threading.Thread(target=client.menu)
-        thread_menu.start()
-        thread_menu.join()
+        
+        t_menu = threading.Thread(target=client.menu)
+        t_menu.start()
+        t_receive_invite = threading.Thread(target=client.receive_udp)
+        t_receive_invite.start()
+
+
+        while not client.call_server.in_call:
+            pass
+
+
+
+
 
 
 

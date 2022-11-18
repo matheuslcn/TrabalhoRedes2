@@ -52,24 +52,24 @@ class Server:
         commands.get(msg_list[0], self.message_error)(conn, msg_list)
 
     def login(self, conn, msg_list):
-        print('login realizado')
         username = msg_list[1]
+        ip = conn.getpeername()[0]
         port = msg_list[2]
         if username in self.users_list:
             self.send_message(conn, 'resposta_login usuario_existente')
             return
-        
-        self.users_list[username] = (conn, port)
+        print("login realizado")
+        self.users_list[username] = (ip, port)
         self.send_message(conn, 'resposta_login usuario_logado_com_sucesso')
+        print("Usuarios logados:")
         print(self.users_list)
 
     def get_user_information(self, conn, msg_list):
         username = msg_list[1]
         if username in self.users_list:
-            user_conn = self.users_list[username][0]
+            user_ip = self.users_list[username][0]
             user_port = self.users_list[username][1]
-            user_ip = user_conn.getpeername()[0]
-            self.send_message(user_conn, f'resposta_consulta {username} {user_ip} {user_port}')
+            self.send_message(conn, f'resposta_consulta {username} {user_ip} {user_port}')
         else:
             self.send_message(conn, 'resposta_consulta usuario_inexistente')
 
