@@ -15,33 +15,26 @@ class Server:
             print("Esperando conexao...")
             conn, (ip, port) = self.sock.accept()
             print('GOT CONNECTION FROM:', (ip, port))
-            thread = threading.Thread(target=self.threaded_client, args=(conn, ip))
+            self.receive_message(conn)
+            username = self.get_username(conn)
+            thread = threading.Thread(target=self.threaded_client, args=(conn, username))
             thread.start()
 
-    def threaded_client(self, conn, ip):
+    def get_username(self, conn):
+        for username in self.users_list:
+            if self.users_list[username][0] == conn:
+                return username
+        return None
+
+    def threaded_client(self, conn, username):
         while True:
             try:
                 self.receive_message(conn)
             except:
-                self.remove_user(ip)
+                self.remove_user(username)
                 break
         print('Conexao encerrada')
-        print(self.users_list)
-
-    def add_user(self, conn, username, port):
-        if username in self.users_list:
-            conn.send('EXISTING_USER'.encode())
-            return
-        self.users_list[username] = (conn, port)
-        self.send_message(conn, 'SUCCESSFUL_LOGIN')
-        print(self.users_list)    
-
-    def remove_user(self, ip):
-        for username in self.users_list:
-            user_ip = self.users_list[username][0].getpeername()[0]
-            if user_ip == ip:
-                del self.users_list[username]
-                break
+        print(self.users_list)  
                 
     def send_message(self, conn, msg):
         conn.send(msg.encode())
@@ -51,13 +44,26 @@ class Server:
         print(msg)
         msg_list = msg.split()
         commands = {
-            'LOGIN': self.add_user,
+            'LOGIN': self.login,
             'CALL': self.call,
             'LOGOUT': self.logout,
             'OCCUPIED': self.occupied,
             'AVAILABLE': self.available
         }
+        print(msg_list)
         commands.get(msg_list[0], self.message_error)(conn, msg_list)
+
+    def login(self, conn, msg_list):
+        print('login realizado')
+        username = msg_list[1]
+        port = msg_list[2]
+        if username in self.users_list:
+            self.send_message(conn, 'USER_ALREADY_EXISTS')
+            return
+        
+        self.users_list[username] = (conn, port)
+        self.send_message(conn, 'SUCCESSFUL_LOGIN')
+        print(self.users_list)
 
     def call(self, conn, msg_list):
         username = msg_list[1]
@@ -69,9 +75,10 @@ class Server:
         else:
             self.send_message(conn, 'USER_NOT_FOUND')
 
-    def logout(self, conn, _):
-        ip = conn.getpeername()[0]
-        self.remove_user(ip)
+    def logout(self, conn, msg_list):
+        username = msg_list[1]
+        self.users_list.pop(username)
+        conn.close()
 
     def occupied(self, conn, _):
         self.send_message(conn, 'OCCUPIED')

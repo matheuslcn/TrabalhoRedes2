@@ -27,6 +27,20 @@ class Client:
             print(msg)
             msg_list = msg.split()
             response = ''
+            """
+            # para refatoracao
+            commands = {
+                'SUCCESSFUL_LOGIN': self.login,
+                'USER_ALREADY_EXISTS': self.user_already_exists,
+                'CALL': self.call,
+                'LOGOUT': self.logout,
+                'OCCUPIED': self.occupied,
+                'AVAILABLE': self.available,
+                'USER_NOT_FOUND': self.user_not_found,
+            }
+            """
+
+
             if msg_list[0] == 'CALL':
                 if self.in_call:
                     response = 'OCCUPIED'
@@ -40,7 +54,7 @@ class Client:
             elif msg_list[0] == 'AVAILABLE':
                 print("Usuario disponivel")
                 self.start_call(msg_list[1], msg_list[2])
-            elif msg_list[0] == 'EXISTING_USER':
+            elif msg_list[0] == 'USER_ALREADY_EXISTS':
                 print("Usuario ja existe")
                 self.username = self.change_username()
                 self.send_to_server(f'LOGIN {self.username} {self.udp_listen_port}')
@@ -62,6 +76,7 @@ class Client:
         self.tcp_sock.close()
         self.udp_listen_port.close()
         self.udp_speak_port.close()
+        self.is_logged = False
         
 
     def call(self):
@@ -95,6 +110,17 @@ class Client:
         username = input("Digite seu nome de usuario: ")
         return username
 
+    def menu(self):
+        print("1 - Chamar usuario")
+        print("2 - Sair")
+        option = int(input("Digite a opcao desejada: "))
+        if option == 1:
+            self.call()
+        elif option == 2:
+            self.close()
+        else:
+            print("Opcao invalida")
+
 if __name__ == '__main__':
     udp_listen = int(input("Digite a porta UDP para receber mensagens: "))
     udp_speak = int(input("Digite a porta UDP para enviar mensagens: "))
@@ -104,21 +130,13 @@ if __name__ == '__main__':
     while not client.is_logged:
         pass
 
-    while not client.in_call:
-        print("1 - Fazer chamada")
-        print("2 - Sair")
-        option = input()
-        if option == '1':
-            client.in_call = True
-            client.call()
-            while client.in_call:
-                pass
-        elif option == '2':
-            client.send_to_server('LOGOUT')
-            client.close()
-            break
-        else:
-            print("Opcao invalida")
+    while client.is_logged:
+        while client.in_call:
+            pass
+        thread_menu = threading.Thread(target=client.menu)
+        thread_menu.start()
+        thread_menu.join()
+
 
 
 
