@@ -19,6 +19,7 @@ class Server:
             ip = conn.getpeername()[0]
             username = self.get_username(ip)
             thread = threading.Thread(target=self.threaded_client, args=(conn, username))
+            thread.daemon = True
             thread.start()
 
     def get_username(self, ip):

@@ -17,6 +17,7 @@ class Client:
 
         self.call_server = CallServer(self.host, udp_listen_port, self.udp_call_port)
         threaded_server = threading.Thread(target=self.call_server.start)
+        threaded_server.daemon = True
         threaded_server.start()
 
         self.is_logged = False
@@ -28,6 +29,7 @@ class Client:
     def start(self):
         self.tcp_send(f'login {self.username} {self.call_server.port}')
         thread_receive_message = threading.Thread(target=self.tcp_receive)
+        thread_receive_message.daemon = True
         thread_receive_message.start()
 
     def tcp_send(self, msg):
@@ -145,10 +147,8 @@ class Client:
         print("1 - Chamar usuario")
         print("2 - Sair")
         print("Digite a opcao desejada: ")
-        timeout = 0.1
+        option = ""
         while not self.call_server.in_call:
-            t = threading.Timer(timeout, print, [''])
-            t.start()
             option = int(input(''))
             if option == 1:
                 self.call_server.in_call = True
@@ -157,7 +157,6 @@ class Client:
                 self.close()
             else:
                 print("Opcao invalida")
-            t.cancel()
 
 if __name__ == '__main__':
     udp_listen = int(input("Digite a porta UDP para receber mensagens: "))
@@ -173,17 +172,15 @@ if __name__ == '__main__':
             pass
         
         t_menu = threading.Thread(target=client.menu)
+        t_menu.daemon = True
         t_menu.start()
         t_receive_invite = threading.Thread(target=client.receive_udp)
+        t_receive_invite.daemon = True
         t_receive_invite.start()
 
 
         while not client.call_server.in_call:
             pass
-
-
-
-
 
 
 
