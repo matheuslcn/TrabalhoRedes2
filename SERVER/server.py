@@ -44,11 +44,9 @@ class Server:
         print(msg)
         msg_list = msg.split()
         commands = {
-            'LOGIN': self.login,
-            'CALL': self.call,
-            'LOGOUT': self.logout,
-            'OCCUPIED': self.occupied,
-            'AVAILABLE': self.available
+            'login': self.login,
+            'consulta': self.get_user_information,
+            'logout': self.logout,
         }
         print(msg_list)
         commands.get(msg_list[0], self.message_error)(conn, msg_list)
@@ -58,36 +56,33 @@ class Server:
         username = msg_list[1]
         port = msg_list[2]
         if username in self.users_list:
-            self.send_message(conn, 'USER_ALREADY_EXISTS')
+            self.send_message(conn, 'resposta_login usuario_existente')
             return
         
         self.users_list[username] = (conn, port)
-        self.send_message(conn, 'SUCCESSFUL_LOGIN')
+        self.send_message(conn, 'resposta_login usuario_logado_com_sucesso')
         print(self.users_list)
 
-    def call(self, conn, msg_list):
+    def get_user_information(self, conn, msg_list):
         username = msg_list[1]
         if username in self.users_list:
             user_conn = self.users_list[username][0]
             user_port = self.users_list[username][1]
             user_ip = user_conn.getpeername()[0]
-            self.send_message(user_conn, f'CALL {user_ip} {user_port}')
+            self.send_message(user_conn, f'resposta_consulta {username} {user_ip} {user_port}')
         else:
-            self.send_message(conn, 'USER_NOT_FOUND')
+            self.send_message(conn, 'resposta_consulta usuario_inexistente')
 
     def logout(self, conn, msg_list):
         username = msg_list[1]
-        self.users_list.pop(username)
+        self.remove_user(username)
         conn.close()
 
-    def occupied(self, conn, _):
-        self.send_message(conn, 'OCCUPIED')
-
-    def available(self, conn, _):
-        self.send_message(conn, 'AVAILABLE')
+    def remove_user(self, username):
+        self.users_list.pop(username)
 
     def message_error(self, conn, _):
-        self.send_message(conn, 'INVALID_COMMAND')
+        self.send_message(conn, 'comando_invalido')
 
     def close(self):
         self.sock.close()
