@@ -16,16 +16,15 @@ class Server:
             conn, (ip, port) = self.sock.accept()
             print('GOT CONNECTION FROM:', (ip, port))
             self.receive_message(conn)
-            ip = conn.getpeername()[0]
-            username = self.get_username(ip)
+            username = self.get_username(conn.getpeername())
+            print(f"Usuario {username} conectado")
             thread = threading.Thread(target=self.threaded_client, args=(conn, username))
             thread.daemon = True
             thread.start()
 
-    def get_username(self, ip):
+    def get_username(self, ip_port):
         for username in self.users_list:
-            print(username)
-            if self.users_list[username][0] == ip:
+            if self.users_list[username][0] == ip_port:
                 return username
         return None
 
@@ -34,43 +33,44 @@ class Server:
             try:
                 self.receive_message(conn)
             except:
-                self.remove_user(username)
                 break
+        self.remove_user(username)
         print('Conexao encerrada')
         print(self.users_list)  
                 
     def send_message(self, conn, msg):
+        username = self.get_username(conn.getpeername())
+        print(f"servidor enviando msg: {msg} para: {username}")
         conn.send(msg.encode())
 
     def receive_message(self, conn):
         msg = conn.recv(1024).decode()
-        print(msg)
+        username = self.get_username(conn.getpeername())
+        print(f"servidor recebendo msg: {msg} de: {username}")
         msg_list = msg.split()
         commands = {
             'login': self.login,
             'consulta': self.get_user_information,
             'logout': self.logout,
         }
-        print(msg_list)
         commands.get(msg_list[0], self.message_error)(conn, msg_list)
 
     def login(self, conn, msg_list):
         username = msg_list[1]
-        ip = conn.getpeername()[0]
-        port = msg_list[2]
+        port = int(msg_list[2])
         if username in self.users_list:
             self.send_message(conn, 'resposta_login usuario_existente')
             return
         print("login realizado")
-        self.users_list[username] = (ip, port)
+        self.users_list[username] = (conn.getpeername(), port)
         self.send_message(conn, 'resposta_login usuario_logado_com_sucesso')
-        print("Usuarios logados:")
+        print("Usuarios logados: ")
         print(self.users_list)
 
     def get_user_information(self, conn, msg_list):
         username = msg_list[1]
         if username in self.users_list:
-            user_ip = self.users_list[username][0]
+            user_ip = self.users_list[username][0][0]
             user_port = self.users_list[username][1]
             self.send_message(conn, f'resposta_consulta {username} {user_ip} {user_port}')
         else:
