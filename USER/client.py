@@ -82,28 +82,43 @@ class Client:
             print(f"Convite enviado para {username}")     
         
     def listen(self):
-        while True:
-            msg = self.udp_call_sock.recv(1024).decode()
-            print(msg)
-    
+        while self.call_server.in_call:
+            try:
+                msg = self.udp_call_sock.recv(1024).decode()
+                print(msg)
+                if msg == "sair":
+                    self.end_call()
+            except:
+                pass
+        
     def speak(self, ip, port):
-        while True:
+        while self.call_server.in_call:
             msg = input()
+            if not self.call_server.in_call:
+                break
             self.udp_send(msg, ip, port)
+            if msg == "sair":
+                self.end_call()
+    
+    def end_call(self):
+        self.call_server.in_call = False
+        self.udp_call_sock.close()
+        self.udp_call_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.udp_call_sock.bind((self.host, self.udp_call_port))
     
     def udp_send(self, msg, ip, port):
         self.udp_call_sock.sendto(msg.encode(), (ip, port))
 
-    def receive_udp(self):
+    def udp_receive(self):
         msg, (ip_call_server, port_call_server) = self.udp_call_sock.recvfrom(1024)
         print(msg)
         msg_list = msg.decode().split()
         commands = {
             'convite': self.receive_invite,
             'resposta_convite': self.call,
-
+            'mensagem_invalida': lambda *_: None,
         }
-        commands[msg_list[0]](msg_list, (ip_call_server, port_call_server))
+        commands.get(msg_list[0], self.udp_message_error)(msg_list, (ip_call_server, port_call_server))
 
     def receive_invite(self, msg_list, ip_port):
         ip_call_server, port_call_server = ip_port
@@ -111,8 +126,9 @@ class Client:
         ip = msg_list[2]
         port = int(msg_list[3])
         
-        option = messagebox.askyesno("Convite", f"Voce deseja atender o convite de {username}?")
+        option = messagebox.askyesno(f"Ligação para {self.username}", f"Voce deseja atender a ligação de {username}?")
         if option:
+            self.call_server.in_call = True
             self.start_call(ip, port)
             ans = "disponivel"
         else:
@@ -129,6 +145,12 @@ class Client:
             port = int(msg_list[3])
             self.start_call(ip, port)
 
+    def tcp_message_error(self, *_):
+        self.tcp_send("mensagem_invalida")
+
+    def udp_message_error(self, *_):
+        self.udp_send("mensagem_invalida")
+
 
     def start_call(self, ip, port):
         thread_speak = threading.Thread(target=self.speak, args=(ip, port))
@@ -141,14 +163,14 @@ class Client:
         print("2 - Sair")
         print("Digite a opcao desejada: ")
         while not self.call_server.in_call:
-            option = int(input(''))
-            if option == 1:
+            option = input('')
+            if option == '1':
                 if not self.call_server.in_call:
                     self.call_server.in_call = True
                     self.get_user_information()
                 else:
                     print("Voce ja esta em uma chamada")
-            elif option == 2:
+            elif option == '2':
                 self.close()
             else:
                 print("Opcao invalida")
@@ -170,7 +192,7 @@ if __name__ == '__main__':
         t_menu = threading.Thread(target=client.menu)
         t_menu.daemon = True
         t_menu.start()
-        t_receive_invite = threading.Thread(target=client.receive_udp)
+        t_receive_invite = threading.Thread(target=client.udp_receive)
         t_receive_invite.daemon = True
         t_receive_invite.start()
 
@@ -178,8 +200,3 @@ if __name__ == '__main__':
         while not client.call_server.in_call:
             pass
 
-
-
-
-    
-        

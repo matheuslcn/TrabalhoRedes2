@@ -17,8 +17,9 @@ class CallServer:
             commands = {
                 "convite": self.invite,
                 "resposta_convite": self.ans_invite,
+                'mensagem_invalida': lambda *_: None,
             }
-            commands[msg_list[0]](msg_list, ip, port)
+            commands.get(msg_list[0], self.message_error)(msg_list, ip, port)
 
     def invite(self, username, ip, port):
         if self.in_call:
@@ -48,6 +49,9 @@ class CallServer:
 
     def udp_send(self, msg, ip, port):
         self.sock.sendto(msg.encode(), (ip, port))
+
+    def message_error(self, *_):
+        print("mensagem_invalida")
     
     def close(self):
         self.sock.close()

@@ -52,6 +52,7 @@ class Server:
             'login': self.login,
             'consulta': self.get_user_information,
             'logout': self.logout,
+            'mensagem_invalida': lambda *_: None,
         }
         commands.get(msg_list[0], self.message_error)(conn, msg_list)
 
@@ -85,7 +86,7 @@ class Server:
         self.users_list.pop(username)
 
     def message_error(self, conn, _):
-        self.send_message(conn, 'comando_invalido')
+        self.send_message(conn, 'mensagem_invalida')
 
     def close(self):
         self.sock.close()
