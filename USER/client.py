@@ -1,6 +1,7 @@
 import socket
 import threading
 from callServer import *
+from tkinter import messagebox
 
 class Client:
     def __init__(self, host, tcp_port, udp_listen_port, udp_speak_port):
@@ -109,22 +110,14 @@ class Client:
         username = msg_list[1]
         ip = msg_list[2]
         port = int(msg_list[3])
-
-        print(f"Voce recebeu um convite de {username}")
-        option = int(input("1 - Aceitar\n2 - Recusar\n"))
-        while option != 1 and option != 2:
-            print("Opcao invalida")
-            option = int(input("1 - Aceitar\n2 - Recusar\n"))
-
-        ans = ''
-        if option == 1:
-            ans = "disponivel"
+        
+        option = messagebox.askyesno("Convite", f"Voce deseja atender o convite de {username}?")
+        if option:
             self.start_call(ip, port)
-        elif option == 2:
+            ans = "disponivel"
+        else:
             ans = "recusou"
         self.udp_send(f"resposta_convite {ans} {ip} {port}", ip_call_server, port_call_server)
-
-
 
     def call(self, msg_list, _):
         status = msg_list[1]
@@ -147,16 +140,19 @@ class Client:
         print("1 - Chamar usuario")
         print("2 - Sair")
         print("Digite a opcao desejada: ")
-        option = ""
         while not self.call_server.in_call:
             option = int(input(''))
             if option == 1:
-                self.call_server.in_call = True
-                self.get_user_information()
+                if not self.call_server.in_call:
+                    self.call_server.in_call = True
+                    self.get_user_information()
+                else:
+                    print("Voce ja esta em uma chamada")
             elif option == 2:
                 self.close()
             else:
                 print("Opcao invalida")
+        
 
 if __name__ == '__main__':
     udp_listen = int(input("Digite a porta UDP para receber mensagens: "))
