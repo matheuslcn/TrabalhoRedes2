@@ -1,7 +1,15 @@
 import socket
 import threading
+import pyaudio
+import pickle
+
 from callServer import *
 from tkinter import messagebox
+
+FRAMES_PER_BUFFER = 1024*2
+FORMAT = pyaudio.paInt16
+CHANNELS = 1
+RATE = 16000
 
 class Client:
     def __init__(self, host, tcp_port, udp_listen_port, udp_speak_port):
@@ -20,6 +28,8 @@ class Client:
         threaded_server = threading.Thread(target=self.call_server.start)
         threaded_server.daemon = True
         threaded_server.start()
+
+        self.py_audio = pyaudio.PyAudio()
 
         self.is_logged = False
 
@@ -82,23 +92,31 @@ class Client:
             print(f"Convite enviado para {username}")     
         
     def listen(self):
+        stream = self.py_audio.open(format=FORMAT,
+                        channels=CHANNELS,
+                        rate=RATE,
+                        output=True,
+                        frames_per_buffer=FRAMES_PER_BUFFER)
         while self.call_server.in_call:
             try:
-                msg = self.udp_call_sock.recv(1024).decode()
-                print(msg)
-                if msg == "sair":
-                    self.end_call()
+                audio, _ = self.udp_call_sock.recvfrom(1024 * 8)
+                p_audio = pickle.loads(audio)
+                stream.write(p_audio)
             except:
                 pass
         
     def speak(self, ip, port):
+        stream = self.py_audio.open(format=FORMAT,
+                        channels=CHANNELS,
+                        rate=RATE,
+                        input=True,
+                        frames_per_buffer=FRAMES_PER_BUFFER)
         while self.call_server.in_call:
-            msg = input()
+            audio = stream.read(FRAMES_PER_BUFFER)
+            p_audio = pickle.dumps(audio)
             if not self.call_server.in_call:
                 break
-            self.udp_send(msg, ip, port)
-            if msg == "sair":
-                self.end_call()
+            self.udp_call_sock.sendto(p_audio, (ip, port))
     
     def end_call(self):
         self.call_server.in_call = False
